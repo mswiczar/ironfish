@@ -133,6 +133,7 @@ export class IronfishSdk {
             mode: 'tcp',
             host: config.get('rpcTcpHost'),
             port: config.get('rpcTcpPort'),
+            token: config.get('rpcTcpToken'),
           }
         : {
             mode: 'ipc',
@@ -219,6 +220,7 @@ export class IronfishSdk {
             mode: 'tcp',
             host: this.config.get('rpcTcpHost'),
             port: this.config.get('rpcTcpPort'),
+            token: this.config.get('rpcTcpToken'),
           },
           logger: this.logger,
         }),

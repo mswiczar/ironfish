@@ -2,6 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 import { flags } from '@oclif/command'
+import crypto from 'crypto'
 import {
   Assert,
   IronfishNode,
@@ -24,6 +25,8 @@ import {
   RpcTcpHostFlagKey,
   RpcTcpPortFlag,
   RpcTcpPortFlagKey,
+  RpcTcpTokenFlag,
+  RpcTcpTokenFlagKey,
   RpcUseIpcFlag,
   RpcUseIpcFlagKey,
   RpcUseTcpFlag,
@@ -47,6 +50,7 @@ export default class Start extends IronfishCommand {
     [RpcUseTcpFlagKey]: { ...RpcUseTcpFlag, allowNo: true },
     [RpcTcpHostFlagKey]: RpcTcpHostFlag,
     [RpcTcpPortFlagKey]: RpcTcpPortFlag,
+    [RpcTcpTokenFlagKey]: { ...RpcTcpTokenFlag, allowNo: true },
     bootstrap: flags.string({
       char: 'b',
       description: 'comma-separated addresses of bootstrap nodes to connect to',
@@ -200,11 +204,18 @@ export default class Start extends IronfishCommand {
     }
 
     const newSecretKey = Buffer.from(
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       node.peerNetwork.localPeer.privateIdentity.secretKey,
     ).toString('hex')
     node.internal.set('networkIdentity', newSecretKey)
     await node.internal.save()
+
+    if (node.config.get('enableRpcTcp') && !node.config.loaded['rpcTcpToken']) {
+      const token = crypto.randomBytes(32).toString('hex')
+      node.config.set('rpcTcpToken', token)
+      await node.config.save()
+      this.log(`Generated a new RPC TCP token and storing in your config: ${token}`)
+      this.log(`You can pass this to any commands using --rpc.tcp.token="${token}"`)
+    }
 
     if (node.internal.get('isFirstRun')) {
       await this.firstRun(node)
