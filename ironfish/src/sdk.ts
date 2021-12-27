@@ -200,28 +200,28 @@ export class IronfishSdk {
 
     if (this.config.get('enableRpcIpc')) {
       await node.rpc.mount(
-        new IpcAdapter(
+        new IpcAdapter({
           namespaces,
-          {
+          connection: {
             mode: 'ipc',
             socketPath: this.config.get('ipcPath'),
           },
-          this.logger,
-        ),
+          logger: this.logger,
+        }),
       )
     }
 
     if (this.config.get('enableRpcTcp')) {
       await node.rpc.mount(
-        new IpcAdapter(
+        new IpcAdapter({
           namespaces,
-          {
+          connection: {
             mode: 'tcp',
             host: this.config.get('rpcTcpHost'),
             port: this.config.get('rpcTcpPort'),
           },
-          this.logger,
-        ),
+          logger: this.logger,
+        }),
       )
     }
 

@@ -90,13 +90,15 @@ export class IpcAdapter implements IAdapter {
   started = false
   connection: IpcAdapterConnectionInfo
 
-  constructor(
-    namespaces: ApiNamespace[],
-    connection: IpcAdapterConnectionInfo,
-    logger: Logger = createRootLogger(),
-  ) {
-    this.namespaces = namespaces
-    this.connection = connection
+  constructor(options: {
+    namespaces: ApiNamespace[]
+    connection: IpcAdapterConnectionInfo
+    logger?: Logger
+  }) {
+    this.namespaces = options.namespaces
+    this.connection = options.connection
+
+    const logger = options.logger ?? createRootLogger()
     this.logger = logger.withTag('ipcadapter')
   }
 
