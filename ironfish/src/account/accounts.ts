@@ -59,7 +59,7 @@ export class Accounts {
 
   protected rebroadcastAfter: number
   protected defaultAccount: string | null = null
-  protected headHash: string | null = null
+  protected headHash: Buffer | null = null
   protected isStarted = false
   protected isOpen = false
   protected eventLoopTimeout: SetTimeoutToken | null = null
@@ -124,20 +124,24 @@ export class Accounts {
 
       if (!this.headHash) {
         await addBlock(chainTail)
-        await this.updateHeadHash(chainTail.hash.toString('hex'))
+        await this.updateHeadHash(chainTail.hash)
       }
 
       Assert.isNotNull(this.headHash, 'headHash should be set previously or to chainTail.hash')
 
-      const accountHeadHash = Buffer.from(this.headHash, 'hex')
+      const accountHeadHash = this.headHash
 
       if (chainHead.hash.equals(accountHeadHash)) {
+        console.log('chainEqual')
         return
       }
 
       const accountHead = await this.chain.getHeader(accountHeadHash)
 
-      Assert.isNotNull(accountHead, `Accounts head not found in chain: ${this.headHash}`)
+      Assert.isNotNull(
+        accountHead,
+        `Accounts head not found in chain: ${this.headHash.toString('hex')}`,
+      )
 
       const { fork, isLinear } = await this.chain.findFork(accountHead, chainHead)
       if (!fork) {
@@ -157,7 +161,7 @@ export class Accounts {
             await removeBlock(header)
           }
 
-          await this.updateHeadHash(header.hash.toString('hex'))
+          await this.updateHeadHash(header.hash)
         }
       }
 
@@ -166,7 +170,7 @@ export class Accounts {
           continue
         }
         await addBlock(header)
-        await this.updateHeadHash(header.hash.toString('hex'))
+        await this.updateHeadHash(header.hash)
       }
 
       this.logger.debug(
@@ -229,12 +233,13 @@ export class Accounts {
     this.isStarted = true
 
     if (this.headHash) {
-      const headHashBuffer = Buffer.from(this.headHash, 'hex')
-      const hasHeadBlock = await this.chain.hasBlock(headHashBuffer)
+      const hasHeadBlock = await this.chain.hasBlock(this.headHash)
 
       if (!hasHeadBlock) {
         this.logger.error(
-          `Resetting accounts database because accounts head was not found in chain: ${this.headHash}`,
+          `Resetting accounts database because accounts head was not found in chain: ${this.headHash.toString(
+            'hex',
+          )}`,
         )
         await this.reset()
       }
@@ -267,7 +272,7 @@ export class Accounts {
 
     if (this.db.database.isOpen) {
       await this.saveTransactionsToDb()
-      await this.db.setHeadHash(this.headHash)
+      await this.updateHeadHash(this.headHash)
     }
   }
 
@@ -349,9 +354,10 @@ export class Accounts {
     }
   }
 
-  async updateHeadHash(headHash: string | null): Promise<void> {
+  async updateHeadHash(headHash: Buffer | null): Promise<void> {
     this.headHash = headHash
-    await this.db.setHeadHash(headHash)
+    const hashString = headHash && headHash.toString('hex')
+    await this.db.setHeadHash(hashString)
   }
 
   async reset(): Promise<void> {
@@ -588,7 +594,7 @@ export class Accounts {
     // but setting this.scan is our lock so updating the head doesn't run again
     await this.updateHeadState?.wait()
 
-    const accountHeadHash = Buffer.from(this.headHash, 'hex')
+    const accountHeadHash = this.headHash
 
     const scanFor = Array.from(this.accounts.values())
       .filter((a) => a.rescan !== null && a.rescan <= scan.startedAt)
@@ -830,7 +836,7 @@ export class Accounts {
       return
     }
 
-    const head = await this.chain.getHeader(Buffer.from(this.headHash, 'hex'))
+    const head = await this.chain.getHeader(this.headHash)
 
     if (head === null) {
       return
@@ -892,7 +898,7 @@ export class Accounts {
       return
     }
 
-    const head = await this.chain.getHeader(Buffer.from(this.headHash, 'hex'))
+    const head = await this.chain.getHeader(this.headHash)
 
     if (head === null) {
       return
@@ -1040,7 +1046,7 @@ export class Accounts {
 
     const meta = await this.db.loadAccountsMeta()
     this.defaultAccount = meta.defaultAccountName
-    this.headHash = meta.headHash
+    this.headHash = meta.headHash ? Buffer.from(meta.headHash, 'hex') : null
 
     await this.loadTransactionsFromDb()
   }
